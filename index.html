@@ -2,57 +2,525 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ScamCheck Mini App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ScamCheck</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 16px; }
-    .card { border: 1px solid #ddd; border-radius: 14px; padding: 14px; }
-    input, button, select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; }
-    button { cursor: pointer; margin-top: 10px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-    .hint { color: #666; font-size: 13px; margin-top: 8px; }
+    :root{
+      /* Telegram theme vars (fallbacks) */
+      --bg: var(--tg-theme-bg-color, #0b0f14);
+      --text: var(--tg-theme-text-color, #e7edf5);
+      --hint: var(--tg-theme-hint-color, #9aa7b2);
+      --link: var(--tg-theme-link-color, #6aa7ff);
+      --btn: var(--tg-theme-button-color, #2ea6ff);
+      --btnText: var(--tg-theme-button-text-color, #ffffff);
+      --secondaryBg: var(--tg-theme-secondary-bg-color, #121926);
+
+      --card: color-mix(in srgb, var(--secondaryBg) 80%, #000 20%);
+      --border: color-mix(in srgb, var(--secondaryBg) 65%, var(--text) 10%);
+      --shadow: 0 14px 40px rgba(0,0,0,.35);
+
+      --safe: #2bd576;
+      --warn: #f6c34a;
+      --scam: #ff4d4f;
+    }
+
+    *{ box-sizing: border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(46,166,255,.18), transparent 55%),
+                  radial-gradient(900px 600px at 100% 0%, rgba(255,77,79,.14), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      padding: 18px 16px 22px;
+    }
+
+    .wrap{ max-width: 520px; margin: 0 auto; }
+
+    .top{
+      display:flex; align-items:center; justify-content:space-between;
+      gap: 12px; margin-bottom: 14px;
+    }
+
+    .brand{
+      display:flex; align-items:center; gap:10px;
+    }
+    .logo{
+      width:40px; height:40px; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(46,166,255,.95), rgba(46,166,255,.25));
+      box-shadow: 0 10px 28px rgba(46,166,255,.22);
+      display:grid; place-items:center;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .logo svg{ width:22px; height:22px; opacity:.95; }
+    .title{
+      display:flex; flex-direction:column; line-height:1.05;
+    }
+    .title b{ font-size: 16px; letter-spacing:.2px; }
+    .title span{ font-size: 12px; color: var(--hint); margin-top: 4px; }
+
+    .pill{
+      display:flex; gap:8px; align-items:center;
+    }
+
+    select, .iconBtn{
+      border:1px solid rgba(255,255,255,.10);
+      background: color-mix(in srgb, var(--card) 82%, #000 18%);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline:none;
+    }
+    select{ padding-right: 32px; }
+    .iconBtn{
+      width: 42px; height: 42px; display:grid; place-items:center;
+      cursor:pointer;
+      transition: transform .08s ease, filter .12s ease;
+      user-select:none;
+    }
+    .iconBtn:active{ transform: scale(.98); filter: brightness(1.05); }
+
+    .card{
+      background: linear-gradient(180deg,
+        color-mix(in srgb, var(--card) 86%, #000 14%),
+        color-mix(in srgb, var(--card) 78%, #000 22%)
+      );
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow:hidden;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:-1px;
+      background: radial-gradient(700px 240px at 10% -20%, rgba(46,166,255,.20), transparent 60%),
+                  radial-gradient(700px 280px at 90% 0%, rgba(255,77,79,.14), transparent 60%);
+      pointer-events:none;
+      opacity:.85;
+    }
+    .card > *{ position: relative; }
+
+    .label{
+      font-size: 12px;
+      color: var(--hint);
+      margin-bottom: 8px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap: 10px;
+    }
+    .label a{ color: var(--link); text-decoration:none; }
+
+    .inputRow{
+      display:flex; gap: 10px;
+    }
+    .input{
+      flex:1;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.14);
+      padding: 14px 14px;
+      color: var(--text);
+      font-size: 16px;
+      outline:none;
+    }
+    .input::placeholder{ color: color-mix(in srgb, var(--hint) 90%, #000 10%); }
+
+    .btn{
+      width: 52px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      cursor:pointer;
+      display:grid; place-items:center;
+      transition: transform .08s ease, filter .12s ease;
+      user-select:none;
+    }
+    .btn:active{ transform: scale(.98); filter: brightness(1.05); }
+
+    .actions{
+      margin-top: 12px;
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .chip{
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      user-select:none;
+      transition: transform .08s ease, filter .12s ease;
+    }
+    .chip:active{ transform: scale(.98); filter: brightness(1.05); }
+    .chip.secondary{ color: var(--hint); }
+
+    .result{
+      margin-top: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.14);
+      padding: 14px;
+      display:none;
+    }
+    .result.show{ display:block; }
+
+    .row{
+      display:flex; align-items:center; justify-content:space-between; gap: 12px;
+    }
+    .score{
+      font-size: 34px;
+      letter-spacing: .2px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .score small{
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--hint);
+      margin-left: 6px;
+    }
+    .badge{
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      white-space: nowrap;
+    }
+    .badge.safe{ color: var(--safe); }
+    .badge.warn{ color: var(--warn); }
+    .badge.scam{ color: var(--scam); }
+
+    .bar{
+      margin-top: 12px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .bar > i{
+      display:block; height:100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--safe), var(--warn), var(--scam));
+      transition: width .35s ease;
+    }
+
+    .reasons{
+      margin-top: 12px;
+      display:flex; flex-wrap:wrap; gap: 8px;
+    }
+    .tag{
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--hint);
+    }
+
+    .footer{
+      margin-top: 12px;
+      color: var(--hint);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .primaryBtn{
+      margin-top: 14px;
+      width: 100%;
+      border: none;
+      border-radius: 18px;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--btn) 92%, #000 8%), rgba(46,166,255,.55));
+      color: var(--btnText);
+      padding: 14px 14px;
+      font-weight: 800;
+      font-size: 15px;
+      cursor:pointer;
+      box-shadow: 0 14px 32px rgba(46,166,255,.18);
+      transition: transform .08s ease, filter .12s ease;
+    }
+    .primaryBtn:active{ transform: scale(.99); filter: brightness(1.05); }
+
+    .mutedBtn{
+      margin-top: 10px;
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 13px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor:pointer;
+      transition: transform .08s ease, filter .12s ease;
+    }
+    .mutedBtn:active{ transform: scale(.99); filter: brightness(1.05); }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 18px;
+      background: rgba(0,0,0,.65);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      border: 1px solid rgba(255,255,255,.12);
+      opacity: 0;
+      pointer-events:none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(-6px);
+    }
   </style>
 </head>
+
 <body>
-  <div class="card">
-    <div class="row">
-      <select id="lang">
-        <option value="ru">Русский</option>
-        <option value="en">English</option>
-      </select>
-      <button id="sync">Sync</button>
+  <div class="wrap">
+
+    <div class="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 2l7 4v6c0 5-3 9-7 10-4-1-7-5-7-10V6l7-4z" stroke="white" stroke-width="1.7"/>
+            <path d="M9.2 12.1l1.9 1.9 3.8-4.2" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="title">
+          <b>ScamCheck</b>
+          <span id="subtitle">Fast risk scan for Telegram links</span>
+        </div>
+      </div>
+
+      <div class="pill">
+        <select id="lang" aria-label="Language">
+          <option value="ru">RU</option>
+          <option value="en">EN</option>
+        </select>
+        <div class="iconBtn" id="close" title="Close">
+          ✕
+        </div>
+      </div>
     </div>
 
-    <h3 style="margin: 12px 0 6px;">Check</h3>
-    <input id="q" placeholder="@username or https://t.me/username" />
-    <button id="btn">Send to bot</button>
-    <div class="hint">
-      Mini app sends data to the bot via <code>Telegram.WebApp.sendData</code>.
-      The bot replies with the result in chat.
+    <div class="card">
+      <div class="label">
+        <span id="lbl">Paste @username or t.me link</span>
+        <a href="#" id="how">How it works</a>
+      </div>
+
+      <div class="inputRow">
+        <input id="q" class="input" placeholder="@username or https://t.me/username" inputmode="text" autocomplete="off" />
+        <button class="btn" id="paste" title="Paste">📋</button>
+      </div>
+
+      <div class="actions">
+        <div class="chip" id="example1">@telegram</div>
+        <div class="chip" id="example2">t.me/telegram</div>
+        <div class="chip secondary" id="clear">Clear</div>
+      </div>
+
+      <div class="result" id="result">
+        <div class="row">
+          <div class="score"><span id="score">—</span><small>/100</small></div>
+          <div class="badge" id="badge">—</div>
+        </div>
+        <div class="bar"><i id="bar"></i></div>
+        <div class="reasons" id="reasons"></div>
+      </div>
+
+      <button class="primaryBtn" id="check">Check</button>
+      <button class="mutedBtn" id="syncLang">Save language</button>
+
+      <div class="footer" id="footer">
+        This mini app sends your query to the bot. The bot replies in chat with the result.
+      </div>
     </div>
+
   </div>
 
+  <div class="toast" id="toast">Copied</div>
+
 <script>
-  const tg = window.Telegram.WebApp;
-  tg.ready();
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    tg.setHeaderColor?.("secondary_bg_color");
+    tg.setBackgroundColor?.("bg_color");
+  }
 
-  const userLang = (tg.initDataUnsafe?.user?.language_code || "ru").toLowerCase().startsWith("en") ? "en" : "ru";
-  document.getElementById("lang").value = userLang;
+  const $ = (id) => document.getElementById(id);
 
-  document.getElementById("sync").onclick = () => {
-    const lang = document.getElementById("lang").value;
-    tg.sendData(JSON.stringify({type: "set_lang", lang}));
-    tg.close();
+  const I18N = {
+    ru: {
+      subtitle: "Быстрая проверка риска по Telegram",
+      lbl: "Вставь @username или ссылку t.me",
+      how: "Как работает",
+      placeholder: "@username или https://t.me/username",
+      footer: "Мини-апп отправляет запрос боту. Результат придёт в чат.",
+      check: "Проверить",
+      save: "Сохранить язык",
+      clear: "Очистить",
+      toastCopied: "Скопировано",
+      toastEmpty: "Вставь ссылку или @username",
+      howText: "1) Вставляешь @username или t.me ссылку\n2) Нажимаешь Проверить\n3) Бот отвечает в чате\n\nВажно: это оценка риска (эвристика), не 100% гарантия."
+    },
+    en: {
+      subtitle: "Fast Telegram risk scan",
+      lbl: "Paste @username or t.me link",
+      how: "How it works",
+      placeholder: "@username or https://t.me/username",
+      footer: "This mini app sends the query to the bot. The bot replies in chat.",
+      check: "Check",
+      save: "Save language",
+      clear: "Clear",
+      toastCopied: "Copied",
+      toastEmpty: "Paste a link or @username",
+      howText: "1) Paste @username or t.me link\n2) Tap Check\n3) The bot replies in chat\n\nNote: heuristic risk estimate, not a guarantee."
+    }
   };
 
-  document.getElementById("btn").onclick = () => {
-    const q = document.getElementById("q").value.trim();
-    if (!q) return;
-    const lang = document.getElementById("lang").value;
-    tg.sendData(JSON.stringify({type: "check", q, lang}));
-    tg.close();
+  function toast(msg){
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    setTimeout(() => el.classList.remove("show"), 1100);
+  }
+
+  function setLang(lang){
+    $("lang").value = lang;
+    const t = I18N[lang] || I18N.en;
+    $("subtitle").textContent = t.subtitle;
+    $("lbl").textContent = t.lbl;
+    $("how").textContent = t.how;
+    $("q").placeholder = t.placeholder;
+    $("footer").textContent = t.footer;
+    $("check").textContent = t.check;
+    $("syncLang").textContent = t.save;
+    $("clear").textContent = t.clear;
+    // examples remain
+  }
+
+  // initial language: Telegram user language_code if available
+  const initLang = (() => {
+    const code = tg?.initDataUnsafe?.user?.language_code || "ru";
+    return String(code).toLowerCase().startsWith("en") ? "en" : "ru";
+  })();
+  setLang(initLang);
+
+  function verdictFromScore(score){
+    if (score >= 60) return "scam";
+    if (score >= 30) return "warn";
+    return "safe";
+  }
+
+  function renderResult(score, reasons = []){
+    $("result").classList.add("show");
+    $("score").textContent = String(score);
+    const v = verdictFromScore(score);
+    const badge = $("badge");
+    badge.className = "badge " + v;
+
+    if ($("lang").value === "ru"){
+      badge.textContent = v === "safe" ? "🟢 SAFE" : (v === "warn" ? "🟡 SUSPICIOUS" : "🔴 SCAM");
+    } else {
+      badge.textContent = v === "safe" ? "🟢 SAFE" : (v === "warn" ? "🟡 SUSPICIOUS" : "🔴 SCAM");
+    }
+
+    $("bar").style.width = Math.max(0, Math.min(100, score)) + "%";
+
+    const r = $("reasons");
+    r.innerHTML = "";
+    const show = (txt) => {
+      const div = document.createElement("div");
+      div.className = "tag";
+      div.textContent = txt;
+      r.appendChild(div);
+    };
+
+    // default nice tags (just UI; actual reasons come from bot)
+    if (!reasons.length){
+      show(v === "safe" ? "Low signals" : "Risk signals found");
+    } else {
+      reasons.slice(0, 6).forEach(show);
+    }
+  }
+
+  async function paste(){
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) $("q").value = text.trim();
+      toast(I18N[$("lang").value].toastCopied);
+    } catch(e){
+      // clipboard may be blocked; ignore
+    }
+  }
+
+  function sendData(payload){
+    if (!tg) return;
+    tg.sendData(JSON.stringify(payload));
+  }
+
+  $("paste").onclick = paste;
+  $("example1").onclick = () => { $("q").value = "@telegram"; };
+  $("example2").onclick = () => { $("q").value = "https://t.me/telegram"; };
+  $("clear").onclick = () => { $("q").value = ""; $("result").classList.remove("show"); };
+
+  $("how").onclick = (e) => {
+    e.preventDefault();
+    const lang = $("lang").value;
+    if (tg?.showPopup){
+      tg.showPopup({ title: "ScamCheck", message: I18N[lang].howText, buttons: [{id:"ok", type:"default", text:"OK"}] });
+    } else {
+      alert(I18N[lang].howText);
+    }
   };
+
+  $("syncLang").onclick = () => {
+    const lang = $("lang").value;
+    sendData({ type: "set_lang", lang });
+    tg?.HapticFeedback?.notificationOccurred?.("success");
+    tg?.close();
+  };
+
+  $("check").onclick = () => {
+    const q = $("q").value.trim();
+    const lang = $("lang").value;
+    if (!q){
+      toast(I18N[lang].toastEmpty);
+      tg?.HapticFeedback?.notificationOccurred?.("error");
+      return;
+    }
+
+    // Make UI feel alive
+    renderResult(0, lang === "ru" ? ["Отправляю запрос боту…"] : ["Sending to bot…"]);
+    setTimeout(() => renderResult(12, lang === "ru" ? ["Проверяю сигналы…"] : ["Scanning signals…"]), 250);
+
+    sendData({ type: "check", q, lang });
+
+    // close quickly: user gets result in chat
+    tg?.HapticFeedback?.impactOccurred?.("light");
+    setTimeout(() => tg?.close(), 350);
+  };
+
+  $("lang").addEventListener("change", () => setLang($("lang").value));
+  $("close").onclick = () => tg?.close();
+
 </script>
 </body>
 </html>
