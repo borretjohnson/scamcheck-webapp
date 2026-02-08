@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ScamCheck Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 14px; padding: 14px; }
+    input, button, select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; }
+    button { cursor: pointer; margin-top: 10px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .hint { color: #666; font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="row">
+      <select id="lang">
+        <option value="ru">Русский</option>
+        <option value="en">English</option>
+      </select>
+      <button id="sync">Sync</button>
+    </div>
+
+    <h3 style="margin: 12px 0 6px;">Check</h3>
+    <input id="q" placeholder="@username or https://t.me/username" />
+    <button id="btn">Send to bot</button>
+    <div class="hint">
+      Mini app sends data to the bot via <code>Telegram.WebApp.sendData</code>.
+      The bot replies with the result in chat.
+    </div>
+  </div>
+
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+
+  const userLang = (tg.initDataUnsafe?.user?.language_code || "ru").toLowerCase().startsWith("en") ? "en" : "ru";
+  document.getElementById("lang").value = userLang;
+
+  document.getElementById("sync").onclick = () => {
+    const lang = document.getElementById("lang").value;
+    tg.sendData(JSON.stringify({type: "set_lang", lang}));
+    tg.close();
+  };
+
+  document.getElementById("btn").onclick = () => {
+    const q = document.getElementById("q").value.trim();
+    if (!q) return;
+    const lang = document.getElementById("lang").value;
+    tg.sendData(JSON.stringify({type: "check", q, lang}));
+    tg.close();
+  };
+</script>
+</body>
+</html>
